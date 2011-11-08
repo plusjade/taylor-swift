@@ -182,7 +182,7 @@ module TaylorSwift
 
     module ClassMethods
 
-      def define_tag_strategy(opts={})
+      def tell_taylor_swift(opts={})
         self.taylor_named_scope = opts[:named_scope].to_s
         resource_type = opts[:resource].to_s.downcase.to_sym
 
