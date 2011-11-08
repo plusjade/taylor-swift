@@ -50,6 +50,16 @@ data TaylorSwift is returning.
 - redis gem 
 - redis installation
 
+### Why is it named TaylorSwift?
+
+At first I named it `TagBuddy` but then I realized "buddy" can have a meaning when working with it in code.
+For example @user.buddy_get(:tags) may imply some kind of social relationship for this user.
+
+So I came up with `TagSwift` because I want my tagging system to be _swift._
+But then I thought "swift" is a little too generic and might be used elsewhere (name collisions).
+
+So `TagSwift` turned into `TaylorSwift` - she makes pretty good music.
+
 ## api
 
 ### User instance
