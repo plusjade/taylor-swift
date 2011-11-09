@@ -33,7 +33,9 @@ module TaylorSwift
           TaylorSwift::Query.tags(conditions)
         end
       elsif response_type == :items
-        if via_type
+        if conditions[:similar] == true
+          TaylorSwift::Query.similar_items(conditions)
+        elsif via_type
           TaylorSwift::Query.items_via(conditions)
         else
           TaylorSwift::Query.collection(response_type, conditions)
@@ -115,7 +117,6 @@ module TaylorSwift
       users
     end
         
-  
     def self.tags_via(conditions)
       data = self.sort_resources(conditions)
       
@@ -130,12 +131,23 @@ module TaylorSwift
     # Ideally we want what items share the top 3 tags in *their* top n tags
     # but that's kind of hard right now.
     #
-    # This doesn't work
-    def self.similar_items(limit=nil)
-      keys = tags(3).map {|tag| tag.storage_key(:items) }
-      items = $redis.send(:sinter, *keys)
-      items.delete(self.items.to_s)
-      items = items[0, limit.to_i] unless limit.to_i.zero?
+    def self.similar_items(conditions)
+      data = self.sort_resources(conditions)
+      
+      keys = data[:items].first.taylor_get(:tags, :limit => 3, :with_scores => false).map { |name| 
+        h = {}
+        h[TaylorSwift::Settings.identifiers[:tags].to_sym] = name
+        tag = TaylorSwift::Settings.models[:tags].new(h)
+        tag.storage_key(:items)
+      }
+      items = []
+      if keys.count >= 3
+        items = $redis.send(:sinter, *keys)
+      end
+
+      items.delete(data[:items].first.send(TaylorSwift::Settings.identifiers[:items]))
+      items = items[0, conditions[:limit].to_i] unless conditions[:limit].to_i.zero?
+      items
     end
     
   end # Query
