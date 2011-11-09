@@ -86,7 +86,7 @@ module TaylorSwift
       
       # users have different storage_keys, how to merge?
       if data[:users].first.is_a?(TaylorSwift.resource_models[:users])
-        keys = data[:tags].map { |tag| data[:users].first.storage_key(:tag, tag.taylor_named_scope, :items) }
+        keys = data[:tags].map { |tag| data[:users].first.storage_key(:tag, tag.taylor_resource_identifier, :items) }
       else
         keys = data[:tags].map { |tag| tag.storage_key(:items) }
       end
@@ -119,7 +119,7 @@ module TaylorSwift
     def self.tags_via(conditions)
       data = self.sort_resources(conditions)
       
-      tag_array = $redis.hget data[:users].first.storage_key(:items, :tags), data[:items].first.taylor_named_scope
+      tag_array = $redis.hget data[:users].first.storage_key(:items, :tags), data[:items].first.taylor_resource_identifier
       tag_array = tag_array ? ActiveSupport::JSON.decode(tag_array) : []
 
       tag_array.sort!

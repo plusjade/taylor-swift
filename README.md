@@ -27,7 +27,7 @@ But how you implement these classes is completely up to you.
 You can use an ActiveRecord or DataMapper model for your classes or you can setup the class yourself.
 
 Once the classes are defined you just include TaylorSwift on those models
-and define your "named_scope" which is the instance method for the field you want to scope this object to.
+and define your "resource_identifier" which is the instance method for the field you want to scope this object to.
 
 For example you may want to scope your User to its id. 
 Then TaylorSwift knows to store @user.id as the user reference.
@@ -35,7 +35,7 @@ Then TaylorSwift knows to store @user.id as the user reference.
 Your classes will have instance and class level methods that 
 allow you to tag/untag items as well as query the tagging system.
 
-The queries return simple Arrays of "named_scopes", the references to the objects in your system.
+The queries return simple Arrays of "resource_identifiers", the references to the objects in your system.
 In the case of tags TaylorSwift will return the tags as well as the counts on those tags relative to your query.
 
 You are free manipulate and display this data as you please.

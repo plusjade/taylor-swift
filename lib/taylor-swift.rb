@@ -27,7 +27,7 @@ module TaylorSwift
 
     def self.included(model)
       model.extend(ClassMethods)
-      class << model; attr_accessor :taylor_named_scope end
+      class << model; attr_accessor :taylor_resource_identifier end
     end
 
     # Record everything needed to make user<->rep tag associations.
@@ -44,39 +44,39 @@ module TaylorSwift
       args.each { |o| data[TaylorSwift.resource_models.key(o.class)] = o }
 
       # Add ITEM to the USER'S total ITEM data relative to TAG
-      is_new_tag_on_item_for_user = ($redis.sadd data[:user].storage_key(:tag, data[:tag].taylor_named_scope, :items), data[:item].taylor_named_scope)
+      is_new_tag_on_item_for_user = ($redis.sadd data[:user].storage_key(:tag, data[:tag].taylor_resource_identifier, :items), data[:item].taylor_resource_identifier)
 
       $redis.multi do
         # Add ITEM to the USERS's total ITEM data.
-        $redis.sadd data[:user].storage_key(:items), data[:item].taylor_named_scope
+        $redis.sadd data[:user].storage_key(:items), data[:item].taylor_resource_identifier
 
         # Add USER to the ITEM's total USER data
-        $redis.sadd data[:item].storage_key(:users), data[:user].taylor_named_scope
+        $redis.sadd data[:item].storage_key(:users), data[:user].taylor_resource_identifier
 
         # Add USER to the TAG's total USER data.
-        $redis.sadd data[:tag].storage_key(:users), data[:user].taylor_named_scope
+        $redis.sadd data[:tag].storage_key(:users), data[:user].taylor_resource_identifier
 
         # Add ITEM to the TAG's total ITEM data.
-        $redis.sadd data[:tag].storage_key(:items), data[:item].taylor_named_scope
+        $redis.sadd data[:tag].storage_key(:items), data[:item].taylor_resource_identifier
 
         if is_new_tag_on_item_for_user
           # Increment the USER's TAG count for TAG
-          $redis.zincrby data[:user].storage_key(:tags), 1, data[:tag].taylor_named_scope
+          $redis.zincrby data[:user].storage_key(:tags), 1, data[:tag].taylor_resource_identifier
 
           # Increment the ITEM's TAG count for TAG
-          $redis.zincrby data[:item].storage_key(:tags), 1, data[:tag].taylor_named_scope
+          $redis.zincrby data[:item].storage_key(:tags), 1, data[:tag].taylor_resource_identifier
         end
 
         # Add TAG to total TAG data
-        $redis.zincrby data[:tag].class.storage_key(:tags) , 1, data[:tag].taylor_named_scope
+        $redis.zincrby data[:tag].class.storage_key(:tags) , 1, data[:tag].taylor_resource_identifier
 
       end
 
       # Add TAG to USER's tag data relative to ITEM
       # (this is kept in a dictionary to save memory)
       tags_array = data[:user].taylor_get(:tags, :via => data[:item], :with_scores => false)
-      tags_array.push(data[:tag].taylor_named_scope).uniq!
-      $redis.hset data[:user].storage_key(:items, :tags), data[:item].taylor_named_scope, ActiveSupport::JSON.encode(tags_array)
+      tags_array.push(data[:tag].taylor_resource_identifier).uniq!
+      $redis.hset data[:user].storage_key(:items, :tags), data[:item].taylor_resource_identifier, ActiveSupport::JSON.encode(tags_array)
 
     end
 
@@ -93,44 +93,44 @@ module TaylorSwift
       args.each { |o| data[TaylorSwift.resource_models.key(o.class)] = o }
 
       # Remove ITEM from the USER'S total ITEM data relative to TAG
-      was_removed_tag_on_item_for_user = ($redis.srem data[:user].storage_key(:tag, data[:tag].taylor_named_scope, :items), data[:item].taylor_named_scope)
+      was_removed_tag_on_item_for_user = ($redis.srem data[:user].storage_key(:tag, data[:tag].taylor_resource_identifier, :items), data[:item].taylor_resource_identifier)
 
       $redis.multi do
         # Remove ITEM from the USERS's total ITEM data.
-        $redis.srem data[:user].storage_key(:items), data[:item].taylor_named_scope
+        $redis.srem data[:user].storage_key(:items), data[:item].taylor_resource_identifier
 
         # Remove USER from the ITEM's total USER data
-        $redis.srem data[:item].storage_key(:users), data[:user].taylor_named_scope
+        $redis.srem data[:item].storage_key(:users), data[:user].taylor_resource_identifier
 
         # Remove USER from the TAG's total USER data.
-        $redis.srem data[:tag].storage_key(:users), data[:user].taylor_named_scope
+        $redis.srem data[:tag].storage_key(:users), data[:user].taylor_resource_identifier
 
         # Remove ITEM from the TAG's total ITEM data.
-        $redis.srem data[:tag].storage_key(:items), data[:item].taylor_named_scope
+        $redis.srem data[:tag].storage_key(:items), data[:item].taylor_resource_identifier
       end
 
       if was_removed_tag_on_item_for_user
         # Decrement the USER's TAG count for TAG
-        if($redis.zincrby data[:user].storage_key(:tags), -1, data[:tag].taylor_named_scope).to_i <= 0
-          $redis.zrem data[:user].storage_key(:tags), data[:tag].taylor_named_scope
+        if($redis.zincrby data[:user].storage_key(:tags), -1, data[:tag].taylor_resource_identifier).to_i <= 0
+          $redis.zrem data[:user].storage_key(:tags), data[:tag].taylor_resource_identifier
         end
 
         # Decrement the ITEM's TAG count for TAG
-        if ($redis.zincrby data[:item].storage_key(:tags), -1, data[:tag].taylor_named_scope).to_i <= 0
-          $redis.zrem data[:item].storage_key(:tags), data[:tag].taylor_named_scope
+        if ($redis.zincrby data[:item].storage_key(:tags), -1, data[:tag].taylor_resource_identifier).to_i <= 0
+          $redis.zrem data[:item].storage_key(:tags), data[:tag].taylor_resource_identifier
         end
       end
 
       # Decrement TAG count in TAG data
-      if ($redis.zincrby data[:tag].class.storage_key(:tags), -1, data[:tag].taylor_named_scope).to_i <= 0
-        $redis.zrem data[:tag].class.storage_key(:tags), data[:tag].taylor_named_scope
+      if ($redis.zincrby data[:tag].class.storage_key(:tags), -1, data[:tag].taylor_resource_identifier).to_i <= 0
+        $redis.zrem data[:tag].class.storage_key(:tags), data[:tag].taylor_resource_identifier
       end
 
       # REMOVE TAG from USER's tag data relative to ITEM
       # (this is kept in a dictionary to save memory)
       tags_array = data[:user].taylor_get(:tags, :via => data[:item], :with_scores => false)
-      tags_array.delete(data[:tag].taylor_named_scope)
-      $redis.hset data[:user].storage_key(:items, :tags), data[:item].taylor_named_scope, ActiveSupport::JSON.encode(tags_array)
+      tags_array.delete(data[:tag].taylor_resource_identifier)
+      $redis.hset data[:user].storage_key(:items, :tags), data[:item].taylor_resource_identifier, ActiveSupport::JSON.encode(tags_array)
     end
 
     # This is the main and recommended public interface for querying resources. 
@@ -143,7 +143,7 @@ module TaylorSwift
     #   Optional hash of conditions for filtering, limits, etc.
     #
     # @return [Array]
-    # Returns and array of named_scopes of the type "response_type"
+    # Returns and array of resource_identifiers of the type "response_type"
     #
     # @example
     #
@@ -166,22 +166,22 @@ module TaylorSwift
     def storage_key(*args)
       args.map! { |v|
         TaylorSwift.resource_namespaces[v] || v
-      }.unshift(self.taylor_named_scope)
+      }.unshift(self.taylor_resource_identifier)
       
       self.class.storage_key(*args)
     end
 
     # Return the field we are scoping on for this model instance.
     #
-    def taylor_named_scope
-      self.send(self.class.taylor_named_scope)
+    def taylor_resource_identifier
+      self.send(self.class.taylor_resource_identifier)
     end
 
 
     module ClassMethods
 
       def tell_taylor_swift(resource_type, opts={})
-        self.taylor_named_scope = opts[:named_scope].to_s
+        self.taylor_resource_identifier = opts[:identifier].to_s
         if ValidResourceTypes.include?(resource_type.to_sym)
           TaylorSwift.resource_models[resource_type.to_sym] = self
           if opts[:namespace]
@@ -202,7 +202,7 @@ module TaylorSwift
       #   Optional hash of conditions for filtering, limits, etc.
       #
       # @return [Array]
-      # Returns an array of named_scopes of the type *response_type*
+      # Returns an array of resource_identifiers of the type *response_type*
       #
       # @example
       #
