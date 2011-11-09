@@ -184,6 +184,9 @@ module TaylorSwift
         self.taylor_named_scope = opts[:named_scope].to_s
         if ValidResourceTypes.include?(resource_type.to_sym)
           TaylorSwift.resource_models[resource_type.to_sym] = self
+          if opts[:namespace]
+            TaylorSwift.resource_namespaces[resource_type.to_sym] = opts[:namespace]
+          end
         else
           raise "Invalid Resource type. Can only use: #{ValidResourceTypes.inspect}"
         end
