@@ -13,12 +13,12 @@ module TaylorSwift
       sample_resource = resource.is_a?(Array) ? resource.first : resource
       if sample_resource.nil?
         type = nil  
-      elsif TaylorSwift.resource_models.has_value?(sample_resource)
-        type = TaylorSwift.resource_models.key(sample_resource)
-      elsif TaylorSwift.resource_models.has_value?(sample_resource.class)
-        type = TaylorSwift.resource_models.key(sample_resource.class)
+      elsif TaylorSwift::Settings.models.has_value?(sample_resource)
+        type = TaylorSwift::Settings.models.key(sample_resource)
+      elsif TaylorSwift::Settings.models.has_value?(sample_resource.class)
+        type = TaylorSwift::Settings.models.key(sample_resource.class)
       else
-        raise "Invalid via type: #{type}"
+        raise "Invalid via type: '#{type}' for #{sample_resource} passed to .get_type"
       end
       
       type

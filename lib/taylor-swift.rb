@@ -1,25 +1,10 @@
 require "taylor-swift/query"
 require "taylor-swift/utils"
+require "taylor-swift/settings"
 
 module TaylorSwift
   StorageDeliminator = ":"
   ValidResourceTypes = [:items, :tags, :users]
-
-  @@resource_namespaces = {
-    :items              => "ITEMS", 
-    :tags               => "TAGS", 
-    :users              => "USERS"
-  }
-  
-  @@resource_models = {}
-  
-  def self.resource_namespaces
-    @@resource_namespaces
-  end
-      
-  def self.resource_models
-    @@resource_models
-  end
   
   # These are instance methods that get included on all 3 models.
   #
@@ -27,7 +12,6 @@ module TaylorSwift
 
     def self.included(model)
       model.extend(ClassMethods)
-      class << model; attr_accessor :taylor_resource_identifier end
     end
 
     # Record everything needed to make user<->rep tag associations.
@@ -40,43 +24,42 @@ module TaylorSwift
     def taylor_tag(*args)
       args << self
       data = {}
-
-      args.each { |o| data[TaylorSwift.resource_models.key(o.class)] = o }
+      args.each { |o| data[TaylorSwift::Settings.models.key(o.class)] = o }
 
       # Add ITEM to the USER'S total ITEM data relative to TAG
-      is_new_tag_on_item_for_user = ($redis.sadd data[:user].storage_key(:tag, data[:tag].taylor_resource_identifier, :items), data[:item].taylor_resource_identifier)
+      is_new_tag_on_item_for_user = ($redis.sadd data[:users].storage_key(:tag, data[:tags].taylor_resource_identifier, :items), data[:items].taylor_resource_identifier)
 
       $redis.multi do
         # Add ITEM to the USERS's total ITEM data.
-        $redis.sadd data[:user].storage_key(:items), data[:item].taylor_resource_identifier
+        $redis.sadd data[:users].storage_key(:items), data[:items].taylor_resource_identifier
 
         # Add USER to the ITEM's total USER data
-        $redis.sadd data[:item].storage_key(:users), data[:user].taylor_resource_identifier
+        $redis.sadd data[:items].storage_key(:users), data[:users].taylor_resource_identifier
 
         # Add USER to the TAG's total USER data.
-        $redis.sadd data[:tag].storage_key(:users), data[:user].taylor_resource_identifier
+        $redis.sadd data[:tags].storage_key(:users), data[:users].taylor_resource_identifier
 
         # Add ITEM to the TAG's total ITEM data.
-        $redis.sadd data[:tag].storage_key(:items), data[:item].taylor_resource_identifier
+        $redis.sadd data[:tags].storage_key(:items), data[:items].taylor_resource_identifier
 
         if is_new_tag_on_item_for_user
           # Increment the USER's TAG count for TAG
-          $redis.zincrby data[:user].storage_key(:tags), 1, data[:tag].taylor_resource_identifier
+          $redis.zincrby data[:users].storage_key(:tags), 1, data[:tags].taylor_resource_identifier
 
           # Increment the ITEM's TAG count for TAG
-          $redis.zincrby data[:item].storage_key(:tags), 1, data[:tag].taylor_resource_identifier
+          $redis.zincrby data[:items].storage_key(:tags), 1, data[:tags].taylor_resource_identifier
         end
 
         # Add TAG to total TAG data
-        $redis.zincrby data[:tag].class.storage_key(:tags) , 1, data[:tag].taylor_resource_identifier
+        $redis.zincrby data[:tags].class.storage_key(:tags) , 1, data[:tags].taylor_resource_identifier
 
       end
 
       # Add TAG to USER's tag data relative to ITEM
       # (this is kept in a dictionary to save memory)
-      tags_array = data[:user].taylor_get(:tags, :via => data[:item], :with_scores => false)
-      tags_array.push(data[:tag].taylor_resource_identifier).uniq!
-      $redis.hset data[:user].storage_key(:items, :tags), data[:item].taylor_resource_identifier, ActiveSupport::JSON.encode(tags_array)
+      tags_array = data[:users].taylor_get(:tags, :via => data[:items], :with_scores => false)
+      tags_array.push(data[:tags].taylor_resource_identifier).uniq!
+      $redis.hset data[:users].storage_key(:items, :tags), data[:items].taylor_resource_identifier, ActiveSupport::JSON.encode(tags_array)
 
     end
 
@@ -90,47 +73,47 @@ module TaylorSwift
     def taylor_untag(*args)
       args << self
       data = {}
-      args.each { |o| data[TaylorSwift.resource_models.key(o.class)] = o }
+      args.each { |o| data[TaylorSwift::Settings.models.key(o.class)] = o }
 
       # Remove ITEM from the USER'S total ITEM data relative to TAG
-      was_removed_tag_on_item_for_user = ($redis.srem data[:user].storage_key(:tag, data[:tag].taylor_resource_identifier, :items), data[:item].taylor_resource_identifier)
+      was_removed_tag_on_item_for_user = ($redis.srem data[:users].storage_key(:tag, data[:tags].taylor_resource_identifier, :items), data[:items].taylor_resource_identifier)
 
       $redis.multi do
         # Remove ITEM from the USERS's total ITEM data.
-        $redis.srem data[:user].storage_key(:items), data[:item].taylor_resource_identifier
+        $redis.srem data[:users].storage_key(:items), data[:items].taylor_resource_identifier
 
         # Remove USER from the ITEM's total USER data
-        $redis.srem data[:item].storage_key(:users), data[:user].taylor_resource_identifier
+        $redis.srem data[:items].storage_key(:users), data[:users].taylor_resource_identifier
 
         # Remove USER from the TAG's total USER data.
-        $redis.srem data[:tag].storage_key(:users), data[:user].taylor_resource_identifier
+        $redis.srem data[:tags].storage_key(:users), data[:users].taylor_resource_identifier
 
         # Remove ITEM from the TAG's total ITEM data.
-        $redis.srem data[:tag].storage_key(:items), data[:item].taylor_resource_identifier
+        $redis.srem data[:tags].storage_key(:items), data[:items].taylor_resource_identifier
       end
 
       if was_removed_tag_on_item_for_user
         # Decrement the USER's TAG count for TAG
-        if($redis.zincrby data[:user].storage_key(:tags), -1, data[:tag].taylor_resource_identifier).to_i <= 0
-          $redis.zrem data[:user].storage_key(:tags), data[:tag].taylor_resource_identifier
+        if($redis.zincrby data[:users].storage_key(:tags), -1, data[:tags].taylor_resource_identifier).to_i <= 0
+          $redis.zrem data[:users].storage_key(:tags), data[:tags].taylor_resource_identifier
         end
 
         # Decrement the ITEM's TAG count for TAG
-        if ($redis.zincrby data[:item].storage_key(:tags), -1, data[:tag].taylor_resource_identifier).to_i <= 0
-          $redis.zrem data[:item].storage_key(:tags), data[:tag].taylor_resource_identifier
+        if ($redis.zincrby data[:items].storage_key(:tags), -1, data[:tags].taylor_resource_identifier).to_i <= 0
+          $redis.zrem data[:items].storage_key(:tags), data[:tags].taylor_resource_identifier
         end
       end
 
       # Decrement TAG count in TAG data
-      if ($redis.zincrby data[:tag].class.storage_key(:tags), -1, data[:tag].taylor_resource_identifier).to_i <= 0
-        $redis.zrem data[:tag].class.storage_key(:tags), data[:tag].taylor_resource_identifier
+      if ($redis.zincrby data[:tags].class.storage_key(:tags), -1, data[:tags].taylor_resource_identifier).to_i <= 0
+        $redis.zrem data[:tags].class.storage_key(:tags), data[:tags].taylor_resource_identifier
       end
 
       # REMOVE TAG from USER's tag data relative to ITEM
       # (this is kept in a dictionary to save memory)
-      tags_array = data[:user].taylor_get(:tags, :via => data[:item], :with_scores => false)
-      tags_array.delete(data[:tag].taylor_resource_identifier)
-      $redis.hset data[:user].storage_key(:items, :tags), data[:item].taylor_resource_identifier, ActiveSupport::JSON.encode(tags_array)
+      tags_array = data[:users].taylor_get(:tags, :via => data[:items], :with_scores => false)
+      tags_array.delete(data[:tags].taylor_resource_identifier)
+      $redis.hset data[:users].storage_key(:items, :tags), data[:items].taylor_resource_identifier, ActiveSupport::JSON.encode(tags_array)
     end
 
     # This is the main and recommended public interface for querying resources. 
@@ -165,7 +148,7 @@ module TaylorSwift
     #
     def storage_key(*args)
       args.map! { |v|
-        TaylorSwift.resource_namespaces[v] || v
+        TaylorSwift::Settings.get(:namespaces, v, false) || v
       }.unshift(self.taylor_resource_identifier)
       
       self.class.storage_key(*args)
@@ -174,19 +157,17 @@ module TaylorSwift
     # Return the field we are scoping on for this model instance.
     #
     def taylor_resource_identifier
-      self.send(self.class.taylor_resource_identifier)
+      self.send TaylorSwift::Settings.get(:identifiers, TaylorSwift::Utils.get_type(self))
     end
 
 
     module ClassMethods
 
       def tell_taylor_swift(resource_type, opts={})
-        self.taylor_resource_identifier = opts[:identifier].to_s
         if ValidResourceTypes.include?(resource_type.to_sym)
-          TaylorSwift.resource_models[resource_type.to_sym] = self
-          if opts[:namespace]
-            TaylorSwift.resource_namespaces[resource_type.to_sym] = opts[:namespace]
-          end
+          TaylorSwift::Settings.set(:models, resource_type, self)
+          TaylorSwift::Settings.set(:identifiers, resource_type, opts[:identifier].to_s)
+          TaylorSwift::Settings.set(:namespaces, resource_type, opts[:namespace]) if opts[:namespace]
         else
           raise "Invalid Resource type. Can only use: #{ValidResourceTypes.inspect}"
         end
@@ -224,7 +205,7 @@ module TaylorSwift
       #
       def storage_key(*args)
         args.unshift(
-        TaylorSwift.resource_namespaces[TaylorSwift::Utils.get_type(self)],
+        TaylorSwift::Settings.get(:namespaces, TaylorSwift::Utils.get_type(self)),
         ).map! { |v| 
           v.to_s.gsub(StorageDeliminator, "") 
         }.join(StorageDeliminator)
