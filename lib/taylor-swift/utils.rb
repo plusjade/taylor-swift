@@ -15,10 +15,8 @@ module TaylorSwift
         type = nil  
       elsif TaylorSwift.resource_models.has_value?(sample_resource)
         type = TaylorSwift.resource_models.key(sample_resource)
-        type = "#{type}s".to_sym
       elsif TaylorSwift.resource_models.has_value?(sample_resource.class)
         type = TaylorSwift.resource_models.key(sample_resource.class)
-        type = "#{type}s".to_sym
       else
         raise "Invalid via type: #{type}"
       end

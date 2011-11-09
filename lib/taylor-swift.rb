@@ -5,7 +5,7 @@ module TaylorSwift
   class << self; attr_accessor :resource_models ; end
 
   StorageDeliminator = ":"
-  ValidTypes = [:items, :tags, :users]
+  ValidResourceTypes = [:items, :tags, :users]
   
   @@resource_namespaces = {
     :items              => "ITEMS", 
@@ -182,14 +182,12 @@ module TaylorSwift
 
     module ClassMethods
 
-      def tell_taylor_swift(opts={})
+      def tell_taylor_swift(resource_type, opts={})
         self.taylor_named_scope = opts[:named_scope].to_s
-        resource_type = opts[:resource].to_s.downcase.to_sym
-
-        if ValidTypes.include?("#{resource_type}s".to_sym)
-          TaylorSwift.resource_models[resource_type] = self
+        if ValidResourceTypes.include?(resource_type.to_sym)
+          TaylorSwift.resource_models[resource_type.to_sym] = self
         else
-          raise "Invalid Resource type"
+          raise "Invalid Resource type. Can only use: #{ValidResourceTypes.inspect}"
         end
       end
 

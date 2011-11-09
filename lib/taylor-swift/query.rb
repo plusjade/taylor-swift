@@ -23,7 +23,7 @@ module TaylorSwift
     #      Specifies the limit of objects to return
     #
     def self.dispatch(response_type, conditions)
-      raise "Invalid type" unless ValidTypes.include?(response_type)
+      raise "Invalid type" unless ValidResourceTypes.include?(response_type)
       via_type = TaylorSwift::Utils.get_type(conditions[:via])
       
       if response_type == :tags
@@ -85,7 +85,7 @@ module TaylorSwift
       data = self.sort_resources(conditions)
       
       # users have different storage_keys, how to merge?
-      if data[:users].first.is_a?(TaylorSwift.resource_models[:user])
+      if data[:users].first.is_a?(TaylorSwift.resource_models[:users])
         keys = data[:tags].map { |tag| data[:users].first.storage_key(:tag, tag.taylor_named_scope, :items) }
       else
         keys = data[:tags].map { |tag| tag.storage_key(:items) }
