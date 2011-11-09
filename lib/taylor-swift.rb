@@ -2,26 +2,24 @@ require "taylor-swift/query"
 require "taylor-swift/utils"
 
 module TaylorSwift
-  class << self; attr_accessor :resource_models ; end
-
   StorageDeliminator = ":"
   ValidResourceTypes = [:items, :tags, :users]
-  
+
   @@resource_namespaces = {
     :items              => "ITEMS", 
     :tags               => "TAGS", 
     :users              => "USERS"
   }
-
+  
+  @@resource_models = {}
+  
   def self.resource_namespaces
     @@resource_namespaces
   end
-  
-  def self.resource_namespaces=(data) 
-    @@resource_namespaces = data
+      
+  def self.resource_models
+    @@resource_models
   end
-    
-
   
   # These are instance methods that get included on all 3 models.
   #
