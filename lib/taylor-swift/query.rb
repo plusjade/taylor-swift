@@ -61,7 +61,7 @@ module TaylorSwift
     #
     def self.collection(type, conditions)
       scope = conditions[:scope] || conditions[:via]
-      items = $redis.smembers(scope.storage_key(type))
+      items = TaylorSwift.redis.smembers(scope.storage_key(type))
       items = items[0, conditions[:limit].to_i] unless conditions[:limit].to_i.zero?
       items
     end
@@ -72,7 +72,7 @@ module TaylorSwift
     def self.tags(conditions)
       scope = conditions[:scope] || conditions[:via]
 
-      $redis.zrevrange( 
+      TaylorSwift.redis.zrevrange( 
         scope.storage_key(:tags),
         0, 
         (conditions[:limit].to_i.nil? ? -1 : conditions[:limit].to_i - 1),
@@ -93,7 +93,7 @@ module TaylorSwift
         keys = data[:tags].map { |tag| tag.storage_key(:items) }
       end
         
-      items = $redis.send(:sinter, *keys)
+      items = TaylorSwift.redis.send(:sinter, *keys)
       items = items[0, conditions[:limit].to_i] unless conditions[:limit].to_i.zero?
       items
     end
@@ -112,7 +112,7 @@ module TaylorSwift
       keys  = data[:tags].map { |tag| tag.storage_key(:users) }
       keys += data[:items].map { |item| item.storage_key(:users) }
         
-      users = $redis.send(:sinter, *keys)
+      users = TaylorSwift.redis.send(:sinter, *keys)
       users = users[0, conditions[:limit].to_i] unless conditions[:limit].to_i.zero?
       users
     end
@@ -120,7 +120,7 @@ module TaylorSwift
     def self.tags_via(conditions)
       data = self.sort_resources(conditions)
       
-      tag_array = $redis.hget data[:users].first.storage_key(:items, :tags), data[:items].first.taylor_resource_identifier
+      tag_array = TaylorSwift.redis.hget data[:users].first.storage_key(:items, :tags), data[:items].first.taylor_resource_identifier
       tag_array = tag_array ? ActiveSupport::JSON.decode(tag_array) : []
 
       tag_array.sort!
@@ -142,7 +142,7 @@ module TaylorSwift
       }
       items = []
       if keys.count >= 3
-        items = $redis.send(:sinter, *keys)
+        items = TaylorSwift.redis.send(:sinter, *keys)
       end
 
       items.delete(data[:items].first.send(TaylorSwift::Settings.identifiers[:items]))
