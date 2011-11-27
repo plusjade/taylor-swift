@@ -170,6 +170,7 @@ module TaylorSwift
           TaylorSwift::Settings.set(:models, resource_type, self)
           TaylorSwift::Settings.set(:identifiers, resource_type, opts[:identifier].to_s)
           TaylorSwift::Settings.set(:namespaces, resource_type, opts[:namespace]) if opts[:namespace]
+          TaylorSwift::Settings.set(:namespaces, :global, opts[:global_namespace]) if opts[:global_namespace]
         else
           raise "Invalid Resource type. Can only use: #{ValidResourceTypes.inspect}"
         end
@@ -207,7 +208,8 @@ module TaylorSwift
       #
       def storage_key(*args)
         args.unshift(
-        TaylorSwift::Settings.get(:namespaces, TaylorSwift::Utils.get_type(self)),
+        TaylorSwift::Settings.get(:namespaces, :global),
+        TaylorSwift::Settings.get(:namespaces, TaylorSwift::Utils.get_type(self))
         ).map! { |v| 
           v.to_s.gsub(StorageDeliminator, "") 
         }.join(StorageDeliminator)

@@ -9,6 +9,7 @@ module TaylorSwift
         :users => ""
       },
       :namespaces => {
+        :global => "TS",
         :items => "ITEMS", 
         :tags  => "TAGS", 
         :users => "USERS" 
